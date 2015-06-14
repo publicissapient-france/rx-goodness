@@ -1,7 +1,5 @@
 package fr.xebia.rx.goodness;
 
-import fr.xebia.rx.goodness.observer.IntegerPrinterObserver;
-import fr.xebia.rx.goodness.observer.StringPrinterObserver;
 import fr.xebia.rx.goodness.observer.ThreadAwareLongPrinterObserver;
 import fr.xebia.rx.goodness.observer.ThreadAwareStringPrinterObserver;
 import rx.Observable;
@@ -21,10 +19,8 @@ public class Basics {
 
     private static int count = 0;
 
-    public static void main(String[] args) {
-
-        /* Create observable + first subscriber */
-        Observable<String> myObservable = Observable.create(
+    public void outputHelloWord(Subscriber<String> subscriber) {
+        Observable<String> observable = Observable.create(
             new Observable.OnSubscribe<String>() {
                 @Override
                 public void call(Subscriber<? super String> sub) {
@@ -33,120 +29,124 @@ public class Basics {
                 }
             }
         );
-        myObservable.subscribe(new Subscriber<String>() {
-            @Override
-            public void onCompleted() {
-                System.out.println("completed");
-            }
+        observable.subscribe(subscriber);
+    }
 
-            @Override
-            public void onError(Throwable e) {
+    public void justOutputHelloWord(Subscriber<String> subscriber) {
+        Observable.just("Hello, world!").subscribe(subscriber);
+    }
 
-            }
+    public void appendTextToHelloWord(String textToAppend, Subscriber<String> subscriber) {
+        Observable.just("Hello, world!").map(s -> s + textToAppend).subscribe(subscriber);
+    }
 
-            @Override
-            public void onNext(String s) {
-                System.out.println(s);
-            }
-        });
-
-
-        /* Just + ignore (completed/error) */
-        Observable.just("Hello, world!").subscribe(System.out::println);
-
-        /* Append text first approach */
-        Observable.just("Hello, world!").subscribe(s -> System.out.println(s + " You"));
-
-        /* Append text second approach */
-        Observable.just("Hello, world!").map(s -> s + " You").subscribe(System.out::println);
-
-        /* Filter and map (multiply by 2 only even numbers)*/
+    public void multiplyEvenBy(int by, Subscriber<Integer> subscriber) {
         Observable.from(INTEGERS).
             filter(x -> x % 2 == 0).
-            map(x -> x * 2).
-            subscribe(System.out::println);
+            map(x -> x * by).
+            subscribe(subscriber);
+    }
 
-        /* Repeat (repeat 3 times the list) */
+    public void repeat(int times, Subscriber<Integer> subscriber) {
         Observable.from(INTEGERS).
-            repeat(3).
-            subscribe(System.out::println);
+            repeat(times).
+            subscribe(subscriber);
+    }
 
-        /* Flatmap and repeat(repeat 3 times every number) */
+    public void repeatEachNumber(int times, Subscriber<Integer> subscriber) {
         Observable.from(INTEGERS).
-            flatMap(c -> Observable.just(c).repeat(3)).
-            repeat(3).
-            subscribe(System.out::println);
+            flatMap(c -> Observable.just(c).repeat(times)).
+            subscribe(subscriber);
+    }
 
-         /* Filter flatMap and repeat (repeat 3 times only odd numbers) */
+    public void repeatOnlyOddNumbers(int times, Subscriber<Integer> subscriber) {
         Observable.from(INTEGERS).
             flatMap(c -> {
-                if (c % 2 == 0) {
-                    return Observable.just(c).repeat(3);
+                if (c % 2 == 1) {
+                    return Observable.just(c).repeat(times);
                 } else {
                     return Observable.just(c);
                 }
             }).
-            subscribe(new IntegerPrinterObserver());
+            subscribe(subscriber);
+    }
 
-        /* Filter flatMap repeat take (repeat 3 times only odd numbers and keep 5 elements) */
+    public void repeatOnlyOddNumbersAndKeep(int times, int keep, Subscriber<Integer> subscriber) {
         Observable.from(INTEGERS).
             flatMap(c -> {
-                if (c % 2 == 0) {
-                    return Observable.just(c).repeat(3);
+                if (c % 2 == 1) {
+                    return Observable.just(c).repeat(times);
                 } else {
                     return Observable.just(c);
                 }
             }).
-            take(5).
-            subscribe(new IntegerPrinterObserver());
+            take(keep).
+            subscribe(subscriber);
+    }
 
 
-        /* Basic Errors */
+    public void outputErrorWhenValueIs(int value, Subscriber<Integer> subscriber) {
         Observable.from(INTEGERS).
             map(x -> {
-                if (x == 2) {
+                if (x == value) {
                     throw new RuntimeException("Oups");
                 }
                 return x;
             }).
-            subscribe(new IntegerPrinterObserver());
+            subscribe(subscriber);
+    }
 
-
-        /* Errors resume */
+    public void multiplyByAfterErrorWhenValueIs(int by, int value, Subscriber<Integer> subscriber) {
         Observable.from(INTEGERS)
             .map(x -> {
-                if (x % 2 != 0) {
+                if (x == value) {
                     throw new RuntimeException("Oups");
                 }
                 return x;
             })
-            .onErrorResumeNext(Observable.from(INTEGERS).map(x -> 2 * x))
-            .subscribe(new IntegerPrinterObserver());
+            .onErrorResumeNext(Observable.from(INTEGERS).map(x -> by * x))
+            .subscribe(subscriber);
+    }
 
-
-        /* Errors return */
+    public void return42AfterErrorWhenValueIs(int value, Subscriber<Integer> subscriber) {
         Observable.from(INTEGERS).
             map(x -> {
-                if (x == 2) {
+                if (x == value) {
                     throw new RuntimeException("Oups");
                 }
                 return x;
             }).
             doOnError(System.out::println).
             onErrorReturn(x -> 42).
-            subscribe(new IntegerPrinterObserver());
+            subscribe(subscriber);
+    }
 
-        /* Errors retry */
+
+    public void retryWhenValueIs(int times,int value, Subscriber<Integer> subscriber) {
         Observable.from(INTEGERS).
             map(x -> {
-                if (x > count) {
-                    count++;
+                if (x == value) {
                     throw new RuntimeException("Oups");
                 }
                 return x;
             }).
-            retry().
-            subscribe(new IntegerPrinterObserver());
+            retry(times).
+            subscribe(subscriber);
+    }
+
+    public void matchSentenceWithNumber(Subscriber<String> subscriber) {
+        Observable.zip(Observable.from(SENTENCES), Observable.from(INTEGERS), (x, y) -> x + " " + y).
+            subscribe(subscriber);
+    }
+
+    public void matchSentenceWithNumber2(Subscriber<String> subscriber) {
+        Observable.from(SENTENCES)
+            .scan((x, y) -> x + " " + y)
+            .last()
+            .subscribe(subscriber);
+    }
+
+    public static void main(String[] args) {
 
         /* Simple thread aware observer */
         Observable.just("Hello").subscribe(new ThreadAwareStringPrinterObserver());
@@ -156,15 +156,5 @@ public class Basics {
             .subscribeOn(Schedulers.computation())
             .subscribe(new ThreadAwareLongPrinterObserver());
         /*while (true) ;*/
-
-
-        /* Zip */
-        Observable.zip(Observable.from(SENTENCES), Observable.from(INTEGERS), (x, y) -> x + " " + y).subscribe(new StringPrinterObserver());
-
-        /* Accumulator sample */
-        Observable.from(SENTENCES)
-            .scan((x, y) -> x + " " + y)
-            .last()
-            .subscribe(new StringPrinterObserver());
     }
 }
